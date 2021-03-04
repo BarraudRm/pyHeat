@@ -1,5 +1,9 @@
 # pyHeat  simulates heat transfer in a 1D column of soil under steady state conditions.
 
+author: Nicolas Flipo
+date: February 2021
+repository: [https://github.com/flipoyo/pyHeat.git]
+
 Run the code with the main.py.
 
 Configurates the case study with the .json files
