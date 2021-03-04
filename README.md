@@ -6,6 +6,9 @@ __date: February 2021__
 
 __repository: [https://github.com/flipoyo/pyHeat.git]__
 
+pyHeat simulates heat transport in a 1D column of a porous medium in steady state for hydraulics and heat transport.
+
+The equation used are described in TP1_solution.ipynb (in french only for now)
 
 Run the code with the main.py.
 
@@ -15,7 +18,7 @@ The main class, and the only one used in the main.py, is Column.
 
 It is possible to run multiple simulation with various parameter values (see main.py)
 
-For sensitivity analysis it would be wise to create a class Parameter, with on top of value and unit, a range and a pdf law
+For sensitivity analysis it would be nice to create a class Parameter, with on top of value and unit, a range and a pdf law
 
 ## structure of the project
 
@@ -36,8 +39,6 @@ within the codepyheat/*py files, addressing another code file with 'from codepyh
 The testing procedure uses unittest.
 
 All the test code are in unittests
-
-until now, there is a shell runAllTest.sh for running all tests at once.
 
 The procedure to run a test (from main directory):
 ```
