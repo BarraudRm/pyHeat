@@ -173,11 +173,14 @@ class Column(FactoryClass):
         self.solveDarcy()
         self.fillLinSysT()
         self.ls.solveSysLin()
+        upperT = []
         # print(self.ls.x)
         for i in range(self.ncells):
             cell = self.cell[i]
             cell.heat.upperT = self.ls.x[i]
+            upperT.append(cell.heat.upperT)
             cell.heat.specificHeatFlux = cell.heat.upperT * cell.hydro.upperU
+        return upperT
 
     def fillLinSysT(self):
         self.solveDarcy()
@@ -294,7 +297,7 @@ class Column(FactoryClass):
             - permeability, thermal conductivity, porosity
         """
         self.setParamSteady(upperK, lambd, porosity, verbose)
-        self.solveHydSteadyHeatSteady()     # runs the fwd model
+        upperT = self.solveHydSteadyHeatSteady()     # runs the fwd model
         if export:
             physP = self.physProp
             it = caracItSteadyTemplate.format(
@@ -305,6 +308,7 @@ class Column(FactoryClass):
                 # impossible to draw without export.
                 # Draw is therefore conditional to the export
                 self.iterativePlotT(it)
+        return upperT
 
 
 if __name__ == '__main__':

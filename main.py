@@ -15,6 +15,8 @@
 """
 from codepyheat.geometry import Column
 from codepyheat import JSONPATH
+import matplotlib.pyplot as plt
+import numpy as np
 
 # step 1
 rivBed = Column.fromJsonFile(JSONPATH + "configColumn.json")
@@ -30,17 +32,22 @@ rivBed.setBcT(JSONPATH + "configBcTemp.json")
 
 # step 4 solving the problem and printing and plotting the results
 
-rivBed.solveHydSteadyHeatSteady()
-rivBed.printT()
-rivBed.plotT()
+#rivBed.solveHydSteadyHeatSteady()
+#rivBed.printT()
+#rivBed.plotT()
 
 # step 5 running forward model with other parameter values
+for l in (2,4,6,8) :
+    plt.plot(rivBed.runForwardModelSteadyState(1e-5, l, 0.1,False,False,False),np.linspace(0,1,100),label=f"lambdas={l}")
+    
+plt.legend()
+plt.ylabel("hauteur colonne (m)")
+plt.xlabel("Température de l'eau (K)")
+plt.title("Profil de température en fonction de la conductivité thermique")
+plt.show()
+#rivBed.runForwardModelSteadyState(1e-5, 2, 0.1)
 
-rivBed.runForwardModelSteadyState(1e-3, 2, 0.1)
-
-rivBed.runForwardModelSteadyState(1e-5, 2, 0.1)
-
-rivBed.runForwardModelSteadyState(1e-7, 2, 0.1)
+#rivBed.runForwardModelSteadyState(1e-7, 2, 0.1)
 # rivBed.iterativePlotT(caracItSteadyTemplate.format(rivBed.physProp.upperK,rivBed.physProp.lambd,rivBed.physProp.n))
 
 print('End of simulation pyHeat steady')
