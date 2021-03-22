@@ -180,6 +180,8 @@ class Column(FactoryClass):
             cell.heat.upperT = self.ls.x[i]
             upperT.append(cell.heat.upperT)
             cell.heat.specificHeatFlux = cell.heat.upperT * cell.hydro.upperU
+        upperT = list(np.concatenate(upperT).flat)  # NF creates a real vector 
+        # and not a list of arrays of dim 1
         return upperT
 
     def fillLinSysT(self):
