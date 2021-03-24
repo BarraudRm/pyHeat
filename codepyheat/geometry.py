@@ -24,7 +24,9 @@ import matplotlib.pyplot as plt
 
 from codepyheat.factory import FactoryClass
 from codepyheat import (X, Z, NDIM, N, S, complement, printDir, printDirCard,
-                        caracItSteadyTemplate, caracParamTemplate)
+                        caracItSteadyTemplate, caracParamTemplate, CODE_HEAT,
+                        CODE_HYD, JSONPATH, BcHydPermTemplate, BcTempPermTemplate,
+                        RHOW, HEATCAPAW)
 from codepyheat.units import calcValMult
 from codepyheat.heat import Heat, BoundaryConditionHeat, CODE_HEAT
 from codepyheat.hydrogeol import Hydro, BoundaryConditionHyd, CODE_HYD
@@ -134,38 +136,49 @@ class Column(FactoryClass):
             for k in range(NDIM):
                 cell.face[Z][k].hydro.h = H
 
+
     def setBcHyd(self, name):
         bchyd = BoundaryConditionHyd.fromJsonFile(name)
+        self.setBcHydObj(bchyd)
+        
+    def setBcHydObj(self, bchyd):
         self.dh = bchyd.dh
         cell = self.cell[0]
-        cell.hydro.setDirichletCell(Z, S)
-        face = cell.getFace(Z, S)
-        face.hydro.setDirichletFace(0)
+        cell.hydro.setDirichletCell(Z, N)  # NF changing orientation, N instead of S
+        face = cell.getFace(Z, N)  # NF changing orientation, N instead of S
+        # face.hydro.setDirichletFace(0)  # NF changing orientation 
+        face.hydro.setDirichletFace(self.dh)  # NF changing orientation 
         cell = self.cell[self.ncells - 1]
-        cell.hydro.setDirichletCell(Z, N)
-        face = cell.getFace(Z, N)
-        face.hydro.setDirichletFace(self.dh)
+        cell.hydro.setDirichletCell(Z, S)  # NF changing orientation, S instead of N
+        face = cell.getFace(Z, S)  # NF changing orientation, S instead of N
+        # face.hydro.setDirichletFace(self.dh)  # NF changing orientation
+        face.hydro.setDirichletFace(0)  # NF changing orientation
 
     def setBcT(self, name):
         bcT = BoundaryConditionHeat.fromJsonFile(name)
+        self.setBcTObj(bcT)
+        
+    def setBcTObj(self, bcT):
         self.tempAq = bcT.tempAq
         self.tempRiv = bcT.tempRiv
         cell = self.cell[0]
-        cell.heat.setDirichletCell(Z, S)
-        face = cell.getFace(Z, S)
-        face.heat.setDirichletFace(self.tempAq)
+        cell.heat.setDirichletCell(Z, N)  # NF changing orientation, N instead of S
+        face = cell.getFace(Z, N)  # NF changing orientation, N instead of S
+        # face.heat.setDirichletFace(self.tempAq)  # NF changing orientation
+        face.heat.setDirichletFace(self.tempRiv)  # NF changing orientation
         cell = self.cell[self.ncells - 1]
-        cell.heat.setDirichletCell(Z, N)
-        face = cell.getFace(Z, N)
-        face.heat.setDirichletFace(self.tempRiv)
-
+        cell.heat.setDirichletCell(Z, S)  # NF changing orientation, S instead of N
+        face = cell.getFace(Z, S)  # NF changing orientation, S instead of N
+        # face.heat.setDirichletFace(self.tempRiv)  # NF changing orientation
+        face.heat.setDirichletFace(self.tempAq)  # NF changing orientation
+   
     def setHomogeneousPorMed(self, name):
         propPorMed = PropPorousMedia.fromJsonFile(name)
         # propPorMed.printProps()
         self.physProp = propPorMed
 
     def solveDarcy(self):
-        gradH = self.dh / self.depth
+        gradH = - self.dh / self.depth  # NF changing orientation, adds a minus
         for i in range(self.ncells):
             self.cell[i].hydro.calcU(gradH, self.physProp.getUpperK())
 
@@ -201,12 +214,12 @@ class Column(FactoryClass):
                 r = 0
             else:
                 l2 = 3 * kappa  # i
-                if cell.hydro.type == 'BcDirichlet, face -> ZS':
+                if cell.hydro.type == 'BcDirichlet, face -> ZN':  # NF changing orientation, N instead of S
                     l3 = q - kappa  # i+1
-                    r = (q + 2 * kappa) * cell.face[Z][S].heat.upperT
-                elif cell.hydro.type == 'BcDirichlet, face -> ZN':
+                    r = (q + 2 * kappa) * cell.face[Z][N].heat.upperT  # NF changing orientation, N instead of S
+                elif cell.hydro.type == 'BcDirichlet, face -> ZS':  # NF changing orientation, S instead of N
                     l1 = - (q + kappa)  # i-1
-                    r = - (q - 2*kappa) * cell.face[Z][N].heat.upperT  # Check
+                    r = - (q - 2*kappa) * cell.face[Z][S].heat.upperT   # NF changing orientation, S instead of N
                     # Calculate it explicitly
             ls.setLhsVal(i, i-1, l1)
             ls.setLhsVal(i, i, l2)
@@ -226,7 +239,8 @@ class Column(FactoryClass):
         sys.stdout = file
         for i in range(self.ncells):
             cell = self.cell[i]
-            print(i*cell.geom.lenTuple[Z], ',', float(cell.heat.upperT))
+            # print(-i*cell.geom.lenTuple[Z], ',', float(cell.heat.upperT))  # NF changing orientation
+            print(-cell.geom.center.z, ',', float(cell.heat.upperT))  # NF changing orientation
         file.close()
         sys.stdout = original_stdout
 
@@ -285,6 +299,13 @@ class Column(FactoryClass):
 
         physP.setEffectiveParams()  # calculates kappa
 
+    def generateZAxis(self):
+        z = []
+        for i in range(self.ncells):
+            cell = self.cell[i]
+            z.append(-cell.geom.center.z)
+        return z
+  
     def runForwardModelSteadyState(
             self,
             upperK,
@@ -298,6 +319,12 @@ class Column(FactoryClass):
             parameters of the sensitivity analysis and bayesian inversion:
             - permeability, thermal conductivity, porosity
         """
+
+        if verbose:
+            print("Running pyHeat in steady state with the following specs:")
+            self.printBcHydSteady()
+            self.printBcTempSteady()
+
         self.setParamSteady(upperK, lambd, porosity, verbose)
         upperT = self.solveHydSteadyHeatSteady()     # runs the fwd model
         if export:
@@ -309,8 +336,16 @@ class Column(FactoryClass):
             if draw:
                 # impossible to draw without export.
                 # Draw is therefore conditional to the export
-                self.iterativePlotT(it)
+                self.iterativePlotT(it)   
         return upperT
+
+    
+    def printBcHydSteady(self):
+        print(BcHydPermTemplate.format(self.dh))
+
+    def printBcTempSteady(self):
+        print(BcTempPermTemplate.format(self.tempRiv,self.tempAq))
+
 
 
 if __name__ == '__main__':
