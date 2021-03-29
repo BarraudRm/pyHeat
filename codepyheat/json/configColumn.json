@@ -1,9 +1,7 @@
 {
     "depth": {
-            "val": "100",
-            "unit": "cm"
+            "val": "1",
+            "unit": "m"
         },
     "ncells": 100
-
-    
 }

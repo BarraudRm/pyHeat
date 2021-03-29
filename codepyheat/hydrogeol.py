@@ -12,22 +12,19 @@
 
 from codepyheat.factory import FactoryClass
 from codepyheat.units import calcValMult
-from codepyheat import printDir, printDirCard, caracParamTemplate
+from codepyheat import printDir, printDirCard, caracParamTemplate, PERMEABILITY, POROSITY, CODE_HYD
 
 
-RHOW = 1000             # water density kg m-3
-PERMEABILITY = 1e-5     # permeability or hydraulic conductivity m s-1
-POROSITY = 0.15         # kinematic porosity -
 
-CODE_HYD = -9999
 
 
 class Hydro:
-    h = CODE_HYD
-    upperU = CODE_HYD
-    u = CODE_HYD
-    upperQ = CODE_HYD
-    type = 'regular'
+    def __init__(self):
+        self.h = CODE_HYD
+        self.upperU = CODE_HYD
+        self.u = CODE_HYD
+        self.upperQ = CODE_HYD
+        self.type = 'regular'
 
     def setHydHead(self, H):
         self.h = H  # hydraulic head in [m]
@@ -94,9 +91,9 @@ class PropHydro(FactoryClass):
         return self.nameH
 
     def printProp(self):
-        print("Hydraulic Properties of porous media", self.nameH)
-        print(caracParamTemplate.format('\tpermeability or hydraulic conductivity', self.upperK, 'm s-1'))
-        print(caracParamTemplate.format('\tporosity', self.n, '--'))
+        print("\tHydraulic Properties of porous media", self.nameH)
+        print(caracParamTemplate.format('\t\tpermeability or hydraulic conductivity', self.upperK, 'm s-1'))
+        print(caracParamTemplate.format('\t\tporosity', self.n, '--'))
 
 
 class BoundaryConditionHyd(FactoryClass):

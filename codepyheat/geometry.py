@@ -15,24 +15,27 @@
         directory to the environment variable PYTHONPATH:
         export PYTHONPATH = $PYTHONPATH:<parent_dir>
 
+    The Column is orientated downwards with the origin being the top
+
 """
 
 import sys
 import numpy as np
 import pathlib
 import matplotlib.pyplot as plt
+import math
 
 from codepyheat.factory import FactoryClass
 from codepyheat import (X, Z, NDIM, N, S, complement, printDir, printDirCard,
                         caracItSteadyTemplate, caracParamTemplate, CODE_HEAT,
                         CODE_HYD, JSONPATH, BcHydPermTemplate, BcTempPermTemplate,
                         RHOW, HEATCAPAW)
-from codepyheat.units import calcValMult
-from codepyheat.heat import Heat, BoundaryConditionHeat, CODE_HEAT
-from codepyheat.hydrogeol import Hydro, BoundaryConditionHyd, CODE_HYD
+from codepyheat.units import calcValMult, NSECINDAY
+from codepyheat.heat import Heat, BoundaryConditionHeat, BoundConditionMultiSinus
+from codepyheat.hydrogeol import Hydro, BoundaryConditionHyd 
 from codepyheat.porousMedia import PropPorousMedia, LAMBDAW
 from codepyheat.linearAlgebra import LinSys
-from codepyheat import JSONPATH
+from codepyheat.analSol import AnalSolution, AnalSolutionDiff, calcki
 
 
 class Point:
@@ -105,11 +108,14 @@ class Column(FactoryClass):
         self.ncells = ncells
         self.sidelen = depth/ncells
         self.allocAndInitGeomCells()
+        self.mergeFaces()
         self.dh = CODE_HYD  # Hydraulic gradient driving the flow in the
         # Column. The elevation reference is the bottom of the column
         self.tempRiv = CODE_HEAT
         self.tempAq = CODE_HEAT
         self.ls = LinSys(self.ncells)
+        self.nperiod = CODE_HEAT
+
 
     def printProps(self):
         print('Caracteristics of the soil column:')
@@ -123,11 +129,17 @@ class Column(FactoryClass):
         # print('side size', sidelen, 'm')
         xcoord = 0
         self.cell = []
-        for i in range(self.ncells):
-            zcoord = i * sidelen
+        ncells = self.ncells
+        for i in range(ncells):
+            zcoord = i * sidelen  
             side_length = (sidelen, sidelen)
             self.cell.append(Cell(i, Point(xcoord + side_length[X]/2, zcoord +
                              side_length[Z]/2), side_length))
+
+    def mergeFaces(self):
+        ncells = self.ncells
+        for i in range(1,ncells,1):
+            self.cell[i-1].face[Z][S]=self.cell[i].face[Z][N]
 
     def initColumnHydrostatique(self, H):
         for i in range(self.ncells):
@@ -135,7 +147,6 @@ class Column(FactoryClass):
             cell.hydro.h = H
             for k in range(NDIM):
                 cell.face[Z][k].hydro.h = H
-
 
     def setBcHyd(self, name):
         bchyd = BoundaryConditionHyd.fromJsonFile(name)
@@ -171,14 +182,17 @@ class Column(FactoryClass):
         face = cell.getFace(Z, S)  # NF changing orientation, S instead of N
         # face.heat.setDirichletFace(self.tempRiv)  # NF changing orientation
         face.heat.setDirichletFace(self.tempAq)  # NF changing orientation
-   
+
     def setHomogeneousPorMed(self, name):
         propPorMed = PropPorousMedia.fromJsonFile(name)
+        self.setHomogeneousPorMedObj(propPorMed)
+        
+    def setHomogeneousPorMedObj(self, propPorMed):
         # propPorMed.printProps()
         self.physProp = propPorMed
 
     def solveDarcy(self):
-        gradH = - self.dh / self.depth  # NF changing orientation, adds a minus
+        gradH = self.calcGrad()
         for i in range(self.ncells):
             self.cell[i].hydro.calcU(gradH, self.physProp.getUpperK())
 
@@ -192,7 +206,7 @@ class Column(FactoryClass):
             cell = self.cell[i]
             cell.heat.upperT = self.ls.x[i]
             upperT.append(cell.heat.upperT)
-            cell.heat.specificHeatFlux = cell.heat.upperT * cell.hydro.upperU
+            cell.heat.specificHeatFlux = cell.heat.upperT * cell.hydro.upperU  
         upperT = list(np.concatenate(upperT).flat)  # NF creates a real vector 
         # and not a list of arrays of dim 1
         return upperT
@@ -253,14 +267,9 @@ class Column(FactoryClass):
             self.printFileT(file)
 
     def plotT(self):
-        upperT = []
-        z = []
-        for i in range(self.ncells):
-            cell = self.cell[i]
-            z.append(i*cell.geom.lenTuple[Z])
-            upperT.append(cell.heat.upperT)
-        plt.plot(upperT, z)
-        plt.show()
+        str = 'NONE'
+        self.iterativePlotT(str)
+
 
     def iterativePlotT(self, it):
         data = np.genfromtxt(self.setNameOutputT(it), delimiter=',')
@@ -269,30 +278,24 @@ class Column(FactoryClass):
         plt.ylabel("depth in m")
         plt.show()
 
-    def selfIterativePlotT(self):
-        physP = self.physProp
-        it = caracItSteadyTemplate.format(
-             physP.upperK(), physP.getLambda(), physP.getPorosity()
-             )
-        self.iterativePlotT(it)
-
     def setParamSteady(self, upperK, lambd, porosity, verbose):
         physP = self.physProp
         physP.setPermeability(upperK)
         if verbose:
-            print(caracParamTemplate.format('\tpermeability:',
+            print("\tPhysical properties :")
+            print(caracParamTemplate.format('\t\tpermeability:',
                   physP.getUpperK(), 'm s-1'))
 
         physP.setPorosity(porosity)     # Used in the lambda_eq formula
         if verbose:
             print(caracParamTemplate.format(
-                '\tporosity', physP.getPorosity(), '--')
+                '\t\tporosity', physP.getPorosity(), '--')
             )
 
         physP.setLambda(lambd)
         if verbose:
             print(caracParamTemplate.format(
-                '\tequivalent thermal conductivity:',
+                '\t\tequivalent thermal conductivity:',
                 physP.getLambdaEq(LAMBDAW, physP.getPorosity()),
                 'W m-1 K-1')
             )
@@ -305,7 +308,7 @@ class Column(FactoryClass):
             cell = self.cell[i]
             z.append(-cell.geom.center.z)
         return z
-  
+
     def runForwardModelSteadyState(
             self,
             upperK,
@@ -339,14 +342,167 @@ class Column(FactoryClass):
                 self.iterativePlotT(it)   
         return upperT
 
-    
+    def calcGrad(self):
+        return - self.dh / self.depth  # attention orientation vers le bas, il faut changer le signe
+
+    def setParamAnalSolution(self,period):
+        pi = math.pi
+        alpha = self.physProp.alpha 
+        kappa = self.physProp.kappa 
+        gradH = self.calcGrad() # attention orientation vers le bas, il faut changer le signe
+        vt =  - alpha * gradH
+        
+        if (abs(self.dh) > 0):        
+            k1 = 1 / (2 * kappa)
+            k2 = ( 8 * pi *kappa ) / period
+            k3 = pow(vt, 4) + pow(k2, 2)
+            k4 = pow(k3, 1/2)
+            ka = k4 + pow(vt, 2)
+            ka = calcki()(ka)
+            kb = k4 - pow(vt, 2)
+            kb = calcki()(kb)
+            b = k1 * kb
+            a = k1 * (ka - vt)
+        else:
+            a = b = pow(math.pi / (kappa * period), 1/2)
+        print(a,b,vt)
+        self.physProp.b.append(b) 
+        self.physProp.a.append(a)   
+
+    def resetParamAnalSolution(self):
+        self.physProp.b=[]
+        self.physProp.a=[]
+
+    def calcTFromBcTSinus(self, name, ndt, dt):
+        bcts = BoundConditionMultiSinus.fromJsonFile(name)
+        self.tempRiv = self.tempAq = bcts.tempAv
+        return self.calcTFromBcTSinusObj(bcts, ndt, dt)
+
+    def calcTandTrivFromBcTSinus(self, name, ndt, dt):
+        bcts = BoundConditionMultiSinus.fromJsonFile(name)
+        #print("checking the BCheat dict",bcts)
+        self.tempRiv = self.tempAq = bcts.tempAv
+        return [self.calcTFromBcTSinusObj(bcts, ndt, dt), self.calcBcTSinusObj(bcts, ndt, dt)]
+
+    def calcTFromBcTSinusObj(self, bcts, ndt, dt,verbose=True):
+        allT = np.zeros((ndt,self.ncells))
+        psinus = bcts.sinus
+        lsin = len(psinus)
+        self.nperiod = lsin
+        tempAv = bcts.tempAv # initialisation for the first signal, set to 0 after
+        for i in range(lsin):
+            self.setParamAnalSolution(psinus[i].period)
+            if verbose:
+                print("\t\tsetting up paramAnalSol for T calc, with tav {} ampli {}  period {}".format(tempAv,psinus[i].ampli,psinus[i].period))
+            if (abs(self.dh) > 0):
+                tempZT = AnalSolution(self.physProp.a[i],self.physProp.b[i],psinus[i].ampli,tempAv,psinus[i].period)
+            else:
+                tempZT = AnalSolutionDiff(self.physProp.a[i],psinus[i].ampli,tempAv,psinus[i].period)
+            for idt in range(ndt):
+                t = idt * dt
+                for j in range(self.ncells):
+                    cell = self.cell[j]
+                    #cell.heat.upperT = tempZT.val(cell.geom.center.z,t)
+                    #allT[idt][j] += cell.heat.upperT
+                    allT[idt][j] += tempZT.val(cell.geom.center.z,t)
+            tempAv = 0
+        return allT
+
+
+    def calcBcTSinusObj(self, bcts, ndt, dt,verbose=True):
+        self.resetParamAnalSolution()
+        rivT = np.zeros((ndt))
+        psinus = bcts.sinus
+        lsin = len(psinus)
+        self.nperiod = lsin
+        tempAv = bcts.tempAv # initialisation for the first signal, set to 0 after
+        self.tempAq = tempAv
+        for i in range(lsin):
+            self.setParamAnalSolution(psinus[i].period)
+            if verbose:
+                print("\t\tsetting up Triv, with tav {} ampli {}  period {}".format(tempAv,psinus[i].ampli,psinus[i].period))
+            if (abs(self.dh) > 0):
+                tempZT = AnalSolution(self.physProp.a[i],self.physProp.b[i],psinus[i].ampli,tempAv,psinus[i].period)
+            else:
+                tempZT = AnalSolutionDiff(self.physProp.a[i],psinus[i].ampli,tempAv,psinus[i].period)
+            for idt in range(ndt):
+                t = idt * dt
+                cell = self.cell[0]
+                rivT[idt] += tempZT.tempRiv(cell.geom.center.z-cell.geom.lenTuple[Z],t)
+            tempAv = 0
+        return rivT
+
+    def calcFluxFromBcTSinus(self,allT,tempRiv,valQ,ndt,dt,id):
+        ncells = self.ncells
+        adv = np.zeros((ndt,ncells))
+        cond = np.zeros((ndt,ncells))
+        deltaT = np.zeros((ndt,ncells))
+        deltaBil = np.zeros((ndt,ncells))
+        tempAq = self.tempAq
+        ncells = self.ncells
+        physProp = self.physProp
+        rhomCm = physProp.propM.getHeatCapaEq(physProp.propH.n)
+        wAdv = RHOW * HEATCAPAW
+        height = self.sidelen
+        for i in range(ndt):
+            tRiv = tempRiv[id][i]
+            self.solveDarcy()
+
+            #First calculating adv fluxes at faces
+            for j in range(ncells):
+                cell = self.cell[j]
+                q = cell.hydro.upperU
+                hj = cell.heat
+                if i>0:
+                    hj.deltaT = -hj.upperT
+                hj.upperT = allT[id][i][j]
+                if i>0:
+                    hj.deltaT += hj.upperT
+                    hj.deltaT /= dt
+                    deltaT[i][j] = hj.deltaT * rhomCm * height # in W.m-2
+                    hj.deltaT = deltaT[i][j]
+                if j > 0:
+                    upperT = hj.upperT + self.cell[j-1].heat.upperT
+                    upperT /= 2
+                    cell.face[Z][N].heat.upperT = upperT
+                    cell.face[Z][N].heat.speciAdv = - q * upperT
+                    gradT = cell.heat.upperT - self.cell[j-1].heat.upperT
+                    gradT /= self.sidelen
+                    gradT *= - physProp.propM.getLambdaEq(LAMBDAW, physProp.propH.n)
+                    cell.face[Z][N].heat.speciCond =  gradT
+                else:
+                    cell.face[Z][N].heat.upperT = tRiv
+                    cell.face[Z][N].heat.speciAdv =  q * tRiv
+                    cell.face[Z][N].heat.speciCond =  0
+                cell.face[Z][N].heat.speciAdv *= -wAdv
+            cell.face[Z][S].heat.upperT =  tempAq
+            cell.face[Z][S].heat.speciAdv =  q * tempAq
+            cell.face[Z][S].heat.speciAdv *= -wAdv
+            cell.face[Z][S].heat.speciCond = cell.face[Z][N].heat.speciCond
+
+            #Second mass balances at cell centers
+            for j in range(ncells):
+                cell = self.cell[j]
+                hj=cell.heat
+                hj.speciAdv = cell.face[Z][N].heat.speciAdv - cell.face[Z][S].heat.speciAdv
+                adv[i][j] = hj.speciAdv
+                hj.speciCond = cell.face[Z][N].heat.speciCond - cell.face[Z][S].heat.speciCond
+                cond[i][j] = hj.speciCond
+                hj.speciHeatFlux = hj.speciAdv + hj.speciCond
+                hj.deltaBil = hj.deltaT - hj.speciHeatFlux
+                deltaBil[i][j] = hj.deltaBil 
+        print("Max error of Heat Balance closure for ItValQ {} at time {} s : {} W.m-2 (up,down excluded)\n".format(id,i*dt,np.amax(abs(deltaBil[i][1:-1]))))
+        print("Max error of Heat Balance closure for ItValQ {} at time {} s : {} W.m-2\n".format(id,i*dt,np.amax(abs(deltaBil[i]))))
+        #print(adv[i],cond[i],deltaT[i], deltaBil[i])
+        return [adv,cond,deltaT,deltaBil]
+
     def printBcHydSteady(self):
         print(BcHydPermTemplate.format(self.dh))
 
     def printBcTempSteady(self):
         print(BcTempPermTemplate.format(self.tempRiv,self.tempAq))
 
-
+    
 
 if __name__ == '__main__':
     col = Column.fromJsonFile(JSONPATH + 'configColumn.json')

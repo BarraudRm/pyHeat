@@ -14,6 +14,12 @@ class Test(unittest.TestCase):
         self.assertEqual(p.getRho(), 2600)
         self.assertEqual(p.getNameM(), "Soil Column")
 
+    def testParamEff(self):
+        p = PropPorousMedia.fromJsonFile("unittests/UnittestParamColumn.json")
+        p.setEffectiveParams() # TODO later
+        
+
+
 
 if __name__ == '__main__':
     unittest.main()

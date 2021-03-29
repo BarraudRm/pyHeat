@@ -6,5 +6,8 @@
     "depth" : "unitL",
     "dH" : "unitL",
     "Triv" : "unitT",
-    "Taq" : "unitT"
+    "Taq" : "unitT",
+    "Taverage" : "unitT",
+    "Tampli" : "unitT",
+    "Period" : "unitTime"
 }

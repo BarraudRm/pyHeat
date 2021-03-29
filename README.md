@@ -1,24 +1,22 @@
 # pyHeat  simulates heat transfer in a 1D column of soil under steady state conditions.
 
-__author: Nicolas Flipo__
+Run the code with the main.py for steady state simulations.
 
-__date: February 2021__
+Run maintransitoire.py for the study of the effect of a mono periodic boundary condition on top of the column.
 
-__repository: [https://github.com/flipoyo/pyHeat.git]__
-
-pyHeat simulates heat transport in a 1D column of a porous medium in steady state for hydraulics and heat transport.
-
-The equation used are described in TP1_solution.ipynb (in french only for now)
-
-Run the code with the main.py.
+Run multipleSinusForcing.py for the study of the effect of a multi periodic (i.e. annual and daily) boundary condition on top of the column.
 
 Configurates the case study with the .json files
 
 The main class, and the only one used in the main.py, is Column.
 
+The problem is orientated downwards with the origin being the top of the column.
+
 It is possible to run multiple simulation with various parameter values (see main.py)
 
-For sensitivity analysis it would be nice to create a class Parameter, with on top of value and unit, a range and a pdf law
+For sensitivity analysis it would be wise to create a class Parameter, with on top of value and unit, a range and a pdf law
+
+
 
 ## structure of the project
 
@@ -28,7 +26,7 @@ For sensitivity analysis it would be nice to create a class Parameter, with on t
  
 * all JSON files are in codepyheat/json, except the JSON files used by unittest that are in unittests
  
- added __init__.py to codepyheat directory, initialize the module, nice way to set provide interesting information in the module: set location for JSON files, applied in all .py files that read a JSON file. The best way for setting it up is to declare the master folder of codepyheat in the environment variable PYTHONPATH (for instance in the .bashrc in linux-based os)
+ added \_\_init\_\_.py to codepyheat directory, initialize the module, nice way to set provide interesting information in the module: set location for JSON files, applied in all .py files that read a JSON file. The best way for setting it up is to declare the master folder of codepyheat in the environment variable PYTHONPATH (for instance in the .bashrc in linux-based os)
  
 within the codepyheat/*py files, addressing another code file with 'from codepyheat.xxx import ...'
 

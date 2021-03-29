@@ -11,16 +11,11 @@
 
 from codepyheat.factory import FactoryClass
 from codepyheat.units import calcValMult, calcValAdd
-from codepyheat import printDir, printDirCard, caracParamTemplate
-
-RHOS = 2500  # sediment density kg m-3
-LAMBDAS = 2  # sediment thermal conductivity W m-1 K-1 = kg m s-3 K-1
-HEATCAPAS = 1250  # sediment specific heat capacity m2 s-2 K-1
-
-
-LAMBDAW = 0.598  # water thermal conductivity W m-1 K-1
-HEATCAPAW = 4185  # water specific heat capacity m2 s-2 K-1
-CODE_HEAT = -3333
+from codepyheat import (printDir, printDirCard, caracParamTemplate, RHOS,
+                        LAMBDAS, LAMBDAW, HEATCAPAS, CODE_HEAT, RHOW, HEATCAPAW,
+                        POROSITY, weightedAveragePoro
+                        )
+import sys
 
 
 class PropMedia(FactoryClass):
@@ -75,11 +70,17 @@ class PropMedia(FactoryClass):
         self.heatCapa = heatCapa
         self.rho = rho
 
-    def getLambdaEq(self, lw, n):
+    def getLambdaEq(self, lw=LAMBDAW, n=POROSITY):
         lambd = pow(
                 (n * pow(lw, 0.5)+(1-n) * pow(self.lambd, 0.5)), 2
             )  # lw lambda water, n porosity
         return lambd
+
+    def getHeatCapaEq(self, n):
+        rhosCs = self.rho * self.heatCapa
+        rhowCw = RHOW * HEATCAPAW
+        rhomCm = weightedAveragePoro(rhowCw, rhosCs, n)
+        return rhomCm
 
     def setNameM(self, name):
         self.nameM = name
@@ -88,23 +89,28 @@ class PropMedia(FactoryClass):
         return self.nameM
 
     def printProp(self):
-        print("Thermal Properties of the phase (pure solid)", self.nameM)
+        print("\tThermal Properties of the phase (pure solid)", self.nameM)
         print(caracParamTemplate.format(
-            '\tthermal conductivity:',
+            '\t\tthermal conductivity:',
             self.lambd,
             'W m-1 K-1'))
         print(caracParamTemplate.format(
-            '\tspecific heat capacity:',
+            '\t\tspecific heat capacity:',
             self.heatCapa,
             'm2 s-2 K-1'))
-        print(caracParamTemplate.format('\tdensity:', self.rho, 'kg m-3'))
+        print(caracParamTemplate.format('\t\tdensity:', self.rho, 'kg m-3'))
 
 
 class Heat:
-    upperT = CODE_HEAT
-    speciHeatFlux = CODE_HEAT
-    heatFlux = CODE_HEAT
-    type = 'regular'
+    def __init__(self):
+        self.upperT = CODE_HEAT
+        self.speciHeatFlux = CODE_HEAT
+        self.heatFlux = CODE_HEAT
+        self.speciAdv = CODE_HEAT
+        self.speciCond = CODE_HEAT
+        self.deltaT = CODE_HEAT
+        self.deltaBil = CODE_HEAT
+        self.type = 'regular'
 
     def setT(self, temperature):
         self.upperT = temperature
@@ -151,3 +157,31 @@ class BoundaryConditionHeat(FactoryClass):
         # print('second level keys:',bcs['dH'].keys())
         self.tempRiv = calcValAdd(bcs['Triv'], "Triv")
         self.tempAq = calcValAdd(bcs['Taq'], "Taq")
+
+
+class SinusFunction(FactoryClass):
+    def __init__(self, bcs):
+        self.ampli = calcValAdd(bcs['Tampli'], "Tampli")
+        self.period = calcValMult(bcs['Period'], "Period")
+
+
+class BoundConditionSinus(FactoryClass):
+    def __init__(self, bcs):
+        self.tempAv = calcValAdd(bcs['Taverage'], "Taverage")
+        self.sinus.append(SinusFunction(bcs['sinus']))
+
+class BoundConditionMultiSinus(FactoryClass):
+    #sinus = []
+    def __init__(self, bcs):
+        self.sinus = []
+        self.tempAv = calcValAdd(bcs['Taverage'], "Taverage")
+        key = 'sinus'
+        if key in bcs.keys():
+            dTemp = bcs[key]
+            for i in range(len(dTemp)):
+                pt = dTemp[i]
+                sinFun = SinusFunction(pt)
+                self.sinus.append(sinFun)
+        else :
+            print('No temperature periodic signal specified. Impossible to proceed further')
+            sys.exit()

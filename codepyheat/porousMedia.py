@@ -10,21 +10,32 @@
 """
 
 from codepyheat.factory import FactoryClass
-from codepyheat.hydrogeol import PropHydro, RHOW, CODE_HYD
-from codepyheat.heat import PropMedia, LAMBDAW, HEATCAPAW
-from codepyheat import caracParamTemplate
-
+from codepyheat.hydrogeol import PropHydro
+from codepyheat.heat import PropMedia, BoundConditionSinus
+from codepyheat import (caracParamTemplate, RHOW, CODE_HYD,
+                        LAMBDAW, HEATCAPAW, POROSITY, RHOS,
+                        weightedAveragePoro, CODE_HEAT)
 from codepyheat import JSONPATH
+import sys
+import os
 
 
 class PropPorousMedia(FactoryClass):
     kappa = CODE_HYD
 
     def __init__(self, paths):
-        self.propH = PropHydro.fromJsonFile(JSONPATH + paths['hydroFile'])
-        self.propM = PropMedia.fromJsonFile(JSONPATH + paths['sedFile'])
+        if ('hydroFile' in paths):
+            self.propH = PropHydro.fromJsonFile(JSONPATH + paths['hydroFile'])
+        else:
+            self.propH = PropHydro.fromDict(paths['hydroParam'])
+        if ('sedFile' in paths):
+            self.propM = PropMedia.fromJsonFile(JSONPATH + paths['sedFile'])
+        else:
+            self.propM = PropMedia.fromDict(paths['sedParam'])
         self.propM.nameM = paths['name']
-
+        self.a = []  # NF for analytical solution
+        self.b = []  # NF for analytical solution
+        
     def printProps(self):
         self.propH.printProp()
         self.propM.printProp()
@@ -32,14 +43,21 @@ class PropPorousMedia(FactoryClass):
         self.printParamEffective()
 
     def setEffectiveParams(self):
+        rhowCw = RHOW * HEATCAPAW
+        rhomCm = self.propM.getHeatCapaEq(self.propH.n)
         self.kappa = (
             self.propM.getLambdaEq(LAMBDAW, self.propH.n)
-            / (RHOW * HEATCAPAW)
+            / (rhowCw)
         )
+        self.alpha = (rhowCw / rhomCm * self.propH.upperK)
 
     def getKappa(self):
-        self.setEffectiveParams()
+        # self.setEffectiveParams() # I don't think it is necessary
         return self.kappa
+
+    def getAlpha(self):
+        # self.setEffectiveParams() # I don't think it is necessary
+        return self.alpha
 
     def setPermeability(self, upperK):
         return self.propH.setPermeability(upperK)
@@ -81,15 +99,49 @@ class PropPorousMedia(FactoryClass):
         return self.propM.getName()
 
     def printParamEffective(self):
-        print("effective parameters of {}:\n", self.propM.nameM)
+        self.setEffectiveParams()
+        print("\teffective parameters of {}:".format(self.propM.nameM))
         print(caracParamTemplate.format(
-            '\teffective thermal conductivity',
-            self.getKappa(), 'TO SPECIFY LATER')
+            '\t\teffective thermal conductivity',
+            self.getKappa(), 'm2 s-1')
+        )
+        print(caracParamTemplate.format(
+            '\t\teffective advective parameter',
+            self.getAlpha(), 'm s-1')
         )
 
     def printParamEq(self):
-        print('equivalent parameters of ', self.propM.nameM, ':')
+        print('\tequivalent parameters of ', self.propM.nameM, ':')
         print(caracParamTemplate.format(
-            '\tequivalent thermal conductivity: ',
+            '\t\tequivalent thermal conductivity: ',
             self.propM.getLambdaEq(LAMBDAW, self.propH.n),
             'W m-1 K-1'))
+        print(caracParamTemplate.format(
+            '\t\tequivalent heat capacity: ',
+            self.propM.getHeatCapaEq(self.propH.n),
+            'W m-1 K-1'))
+
+    # This method calculates the solid properties based on equivalent properties
+    # It therefore provides an indirect way of specifying equivalent properties
+    def getSedPropFromEquivProp(self, lambdm, rhomCm, n=POROSITY, rhos=RHOS):
+        print('targeted values for porous medium:\n')
+        print('\tlambdam: ', lambdm)
+        print('\trhomCm: ', rhomCm)
+        lambds = pow((pow(lambdm, 0.5) - n * pow(LAMBDAW, 0.5)) / (1 - n), 2)
+        cs = (rhomCm - n * HEATCAPAW * RHOW) / ((1 - n)*rhos)
+        dico = {
+            "sediment": {
+                "lambda" : { "val" : lambds},
+                "specificHeatCapacity" : { "val" : cs},
+                "rho" : { "val" : rhos}               
+            }
+        }
+        self.propM = PropMedia(dico)
+
+
+if __name__ == '__main__':
+    lambdm = 1
+    rhomCm = lambdm / 2.5e-7
+    propM = getSedPropFromEquivProp(lambdm, rhomCm)
+    propM.printProp()
+

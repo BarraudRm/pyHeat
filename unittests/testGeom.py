@@ -145,7 +145,7 @@ class Test(unittest.TestCase):
         cell=col.cell[0]
         self.assertEqual(cell.id,0)
         self.assertEqual(cell.geom.center.x,0.2)
-        self.assertEqual(cell.geom.center.z,0.2)
+        self.assertAlmostEqual(cell.geom.center.z,0.6)
         self.assertEqual(cell.geom.lenTuple[X],0.4)
         self.assertEqual(cell.geom.lenTuple[Z],0.4)
         self.assertEqual(cell.hydro.h,CODE_HYD)
@@ -188,7 +188,7 @@ class Test(unittest.TestCase):
         cell=col.cell[1]
         self.assertEqual(cell.id,1)
         self.assertEqual(cell.geom.center.x,0.2)
-        self.assertAlmostEqual(cell.geom.center.z,0.6)
+        self.assertAlmostEqual(cell.geom.center.z,0.2)
         self.assertEqual(cell.geom.lenTuple[X],0.4)
         self.assertEqual(cell.geom.lenTuple[Z],0.4)
         self.assertEqual(cell.hydro.h,CODE_HYD)
@@ -251,10 +251,10 @@ class Test(unittest.TestCase):
         self.assertEqual(h.type,'BcDirichlet, face -> ZS')
         h=col.cell[0].face[Z][ONE].hydro
         self.assertEqual(h.type,'BcDirichlet')
-        self.assertEqual(h.h,0)
+        self.assertEqual(h.h,0.15)
         h=col.cell[1].face[Z][TWO].hydro
         self.assertEqual(h.type,'BcDirichlet')
-        self.assertEqual(h.h,0.15)
+        self.assertEqual(h.h,0)
 
     def testSetBcHeat(self):
         col = Column.fromJsonFile("unittests/UnittestColumn.json") 
@@ -265,10 +265,10 @@ class Test(unittest.TestCase):
         self.assertEqual(h.type,'BcDirichlet, face -> ZS')
         h=col.cell[0].face[Z][ONE].heat
         self.assertEqual(h.type,'BcDirichlet')
-        self.assertEqual(h.upperT,12)
+        self.assertEqual(h.upperT,273.15+29)
         h=col.cell[1].face[Z][TWO].heat
         self.assertEqual(h.type,'BcDirichlet')
-        self.assertEqual(h.upperT,273.15+29)
+        self.assertEqual(h.upperT,12)
 
 if __name__ == '__main__':
     unittest.main()
