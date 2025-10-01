@@ -1,5 +1,38 @@
 
+#Dans l'intro
+
+moinslog10K_ref=5
+
+
+#Question 2.3
+
+import numpy as np
+def perturbation(param, sigma, range): 
+    result = param + np.random.normal(0, sigma)
+    if result < range[0] or result > range[1]:
+        reste = result%abs(range[1]-range[0])
+        result = range[0] + reste
+    return result
+
+
 #Question 2.4 Energy 
+Dict_Param = {
+    "moinslog10K": moinslog10K_ref,
+    "lambda_s": lambda_s_ref,
+    "n": n_ref
+}
+
+def modele_directe (Dict_Param, brouillee = True):
+    ref = rivBed.runForwardModelSteadyState(10**(-Dict_Param["moinslog10K"]), Dict_Param["lambda_s"], Dict_Param["n"], draw=False, verbose=False)
+    t_echant = get_temp_echant(echant, brouillee=brouillee)
+    return ref, t_echant
+
+ref, t_echant_brouille = modele_directe(Dict_Param)
+
+#print(max(t_echant_brouille))
+#print(ref)
+
+
 
 def energie_systeme(tempe_modele, tempe_obs, sigma_obs):
     """
@@ -15,12 +48,13 @@ def energie_systeme(tempe_modele, tempe_obs, sigma_obs):
 temp_obs=tempe_brouille
 sigma_obs=1
 
-#Question 3.1
+
+#Question 2.5
 
 import numpy as np
 
 # Initialisation
-N = 1000  # nombre d'itérations
+N = 5000  # nombre d'itérations
 params = np.zeros((N, 3))
 energies = np.zeros(N)
 accepts = np.zeros(N)
@@ -33,11 +67,16 @@ sigma_obs = 1
 moinslog10K = np.random.uniform(*range_moinslog10K)
 lambda_s = np.random.uniform(*range_lambda_s)
 n = np.random.uniform(*range_n)
-K = 10**(-moinslog10K)
 
-Dict_Param["K"] = K
+
+Dict_Param["moinslog10K"] = moinslog10K
 Dict_Param["lambda_s"] = lambda_s
 Dict_Param["n"] = n
+
+
+#Question 3.1
+
+
 
 tempe_obs=get_temp_echant(echant)
 profil, tempe_modele = modele_directe(Dict_Param)
@@ -50,12 +89,12 @@ accepts[0] = 1
 
 for i in range(1, N):
     # Propositions
-     
-    K_prop = perturbation(K, sigma_moinslog10K, range_moinslog10K,True)
+
+    moinslog10K_prop = perturbation(moinslog10K, sigma_moinslog10K, range_moinslog10K)
     lambda_s_prop = perturbation(lambda_s, sigma_lambda_s, range_lambda_s)
     n_prop = perturbation(n, sigma_n, range_n)
 
-    Dict_Param["K"] = K_prop
+    Dict_Param["moinslog10K"] = moinslog10K_prop
     Dict_Param["lambda_s"] = lambda_s_prop
     Dict_Param["n"] = n_prop
     profil_prop,tempe_modele_prop = modele_directe(Dict_Param)
@@ -66,19 +105,20 @@ for i in range(1, N):
     alpha = np.exp(E - E_prop) #probabilité d'acceptation, déterminée uniquement par la loi gaussienne propositionnelle 
     if np.random.rand() < alpha: 
         # Acceptation
-        K, lambda_s, n = K_prop, lambda_s_prop, n_prop
+        moinslog10K, lambda_s, n = moinslog10K_prop, lambda_s_prop, n_prop
         E = E_prop
         profil = profil_prop
         accepts[i] = 1
     else:
         accepts[i] = 0
     
-    params[i] = [K, lambda_s, n]
+    params[i] = [moinslog10K, lambda_s, n]
     energies[i] = E
     profils.append(profil)
 
 
 
+#Graphe 1
 import numpy as np
 import matplotlib.pyplot as plt
 
