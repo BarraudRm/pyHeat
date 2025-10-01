@@ -126,3 +126,56 @@ plt.title('Histogramme a posteriori de n')
 
 plt.tight_layout()
 plt.show()
+
+#Histogramme 2D suite
+
+plt.figure(figsize=(15, 4))
+
+plt.subplot(1, 3, 1)
+plt.hist2d(params[:,0], params[:,1], bins=40, cmap='Blues')
+plt.xlabel('-log10(K)')
+plt.ylabel('lambda_s')
+plt.title('K vs lambda_s')
+plt.colorbar(label='Nombre d\'échantillons')
+
+plt.subplot(1, 3, 2)
+plt.hist2d(params[:,0], params[:,2], bins=40, cmap='Greens')
+plt.xlabel('-log10(K)')
+plt.ylabel('n')
+plt.title('K vs n')
+plt.colorbar(label='Nombre d\'échantillons')
+
+plt.subplot(1, 3, 3)
+plt.hist2d(params[:,1], params[:,2], bins=40, cmap='Oranges')
+plt.xlabel('lambda_s')
+plt.ylabel('n')
+plt.title('lambda_s vs n')
+plt.colorbar(label='Nombre d\'échantillons')
+
+plt.tight_layout()
+plt.show()
+
+#Médianes et quartile
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+profils_array = np.array(profils)  # (N, ncells)
+median = np.median(profils_array, axis=0)
+q025 = np.quantile(profils_array, 0.025, axis=0)
+q975 = np.quantile(profils_array, 0.975, axis=0)
+
+plt.figure(figsize=(10,6))
+plt.plot(ref, label='Profil de référence', color='black', linewidth=2)
+plt.plot(median, label='Médiane a posteriori', color='blue')
+plt.fill_between(np.arange(len(median)), q025, q975, color='blue', alpha=0.2, label='Quantiles 2.5% - 97.5%')
+
+# Affichage des données bruitées aux points d'échantillonnage
+plt.scatter([int(100*x) for x in echant], tempe_brouille, color='red', label='Données bruitées', zorder=10)
+
+plt.xlabel('Cellule')
+plt.ylabel('Température')
+plt.title('Profil de température : médiane et quantiles')
+plt.legend()
+plt.grid()
+plt.show()
