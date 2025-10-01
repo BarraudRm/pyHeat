@@ -20,12 +20,11 @@ sigma_obs=1
 import numpy as np
 
 # Initialisation
-N = 5000  # nombre d'itérations
+N = 1000  # nombre d'itérations
 params = np.zeros((N, 3))
 energies = np.zeros(N)
 accepts = np.zeros(N)
 profils = []
-
 
 sigma_obs = 1
 
@@ -36,8 +35,13 @@ lambda_s = np.random.uniform(*range_lambda_s)
 n = np.random.uniform(*range_n)
 K = 10**(-moinslog10K)
 
-tempe_modele, profil = modele_direct(K, lambda_s, n)
-E = energie_systeme(tempe_modele, temp_obs, sigma_obs)
+Dict_Param["K"] = K
+Dict_Param["lambda_s"] = lambda_s
+Dict_Param["n"] = n
+
+tempe_obs=get_temp_echant(echant)
+profil, tempe_modele = modele_directe(Dict_Param)
+E = energie_systeme(tempe_modele, tempe_obs, sigma_obs)
 
 params[0] = [moinslog10K, lambda_s, n]
 energies[0] = E
@@ -46,17 +50,21 @@ accepts[0] = 1
 
 for i in range(1, N):
     # Propositions
+     
     K_prop = perturbation(K, sigma_moinslog10K, range_moinslog10K,True)
     lambda_s_prop = perturbation(lambda_s, sigma_lambda_s, range_lambda_s)
     n_prop = perturbation(n, sigma_n, range_n)
-    
-    
-    tempe_modele_prop, profil_prop = modele_direct(K_prop, lambda_s_prop, n_prop)
-    E_prop = energie_systeme(tempe_modele_prop, temp_obs, sigma_obs)
-    
+
+    Dict_Param["K"] = K_prop
+    Dict_Param["lambda_s"] = lambda_s_prop
+    Dict_Param["n"] = n_prop
+    profil_prop,tempe_modele_prop = modele_directe(Dict_Param)
+    E_prop = energie_systeme(tempe_modele_prop, tempe_obs, sigma_obs)
+
     # Calcul du ratio d'acceptation
-    alpha = np.exp(E - E_prop) #probabilité d'acceptation, déterminée par la loi gaussienne propositionnelle 
-    if np.random.rand() < alpha:
+    #Par symétrie de la fonction q, la proba d'acceptation ne dépend que de pi
+    alpha = np.exp(E - E_prop) #probabilité d'acceptation, déterminée uniquement par la loi gaussienne propositionnelle 
+    if np.random.rand() < alpha: 
         # Acceptation
         K, lambda_s, n = K_prop, lambda_s_prop, n_prop
         E = E_prop
@@ -68,3 +76,28 @@ for i in range(1, N):
     params[i] = [K, lambda_s, n]
     energies[i] = E
     profils.append(profil)
+
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+proba_accept = np.cumsum(accepts) / np.arange(1, N + 1) # probabilité d'acceptation cumulée grace à np.cumsum
+
+plt.figure(figsize=(12, 5))
+plt.subplot(1, 2, 1)
+plt.plot(energies)
+plt.xlabel('Itérations')
+plt.ylabel('Énergie')
+plt.title('Énergie du système au cours des itérations MCMC')
+plt.grid()
+
+plt.subplot(1, 2, 2)
+plt.plot(proba_accept)
+plt.xlabel('Itérations')
+plt.ylabel('Proba. acceptation')
+plt.title('Probabilité d\'acceptation cumulée')
+plt.grid()
+
+plt.tight_layout()
+plt.show()
