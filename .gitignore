@@ -1,3 +1,6 @@
+#jupyter notebook
+TP3_MCMC_enonce.ipynb
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -137,3 +140,4 @@ output/
 .vscode/
 reorg.md
 #test*.py
+
