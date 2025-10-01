@@ -1,3 +1,20 @@
+
+#Question 2.4 Energy 
+
+def energie_systeme(tempe_modele, tempe_obs, sigma_obs):
+    """
+    Calcule l'énergie du système pour le MCMC.
+    tempe_modele : liste des températures simulées aux points de mesure
+    tempe_obs : liste des températures observées (bruitées)
+    sigma_obs : écart-type de l'erreur de mesure
+    """
+    tempe_modele = np.array(tempe_modele)
+    tempe_obs = np.array(tempe_obs)
+    return np.sum((tempe_modele - tempe_obs)**2) / (2 * sigma_obs**2)
+
+temp_obs=tempe_brouille
+sigma_obs=1
+
 #Question 3.1
 
 import numpy as np
