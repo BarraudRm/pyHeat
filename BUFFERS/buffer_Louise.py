@@ -101,3 +101,28 @@ plt.grid()
 
 plt.tight_layout()
 plt.show()
+
+
+#Histogrammes des paramètres
+
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(15, 4))
+
+plt.subplot(1, 3, 1)
+plt.hist(params[:,0], bins=40, color='skyblue', edgecolor='black')
+plt.xlabel('-log10(K)')
+plt.title('Histogramme a posteriori de -log10(K)')
+
+plt.subplot(1, 3, 2)
+plt.hist(params[:,1], bins=40, color='salmon', edgecolor='black')
+plt.xlabel('lambda_s')
+plt.title('Histogramme a posteriori de lambda_s')
+
+plt.subplot(1, 3, 3)
+plt.hist(params[:,2], bins=40, color='lightgreen', edgecolor='black')
+plt.xlabel('n')
+plt.title('Histogramme a posteriori de n')
+
+plt.tight_layout()
+plt.show()
