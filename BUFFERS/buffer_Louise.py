@@ -141,10 +141,11 @@ plt.grid()
 
 plt.tight_layout()
 plt.show()
-
-
+"""
+# On voit qu'on atteint un seuil pour la probabilité d'acceptance autour de 750 itérations, elle se stabilise autour de 0,38, ce qui est plutôt mauvais.
+C'est cohérent avec les valeurs toujours élevées de l'énergie que l'on voit même après la stabilisation. 
 #Histogrammes des paramètres
-
+"""
 import matplotlib.pyplot as plt
 
 plt.figure(figsize=(15, 4))
@@ -166,7 +167,7 @@ plt.title('Histogramme a posteriori de n')
 
 plt.tight_layout()
 plt.show()
-
+"""On voit que les valeurs des paramètres n'ont pas été déterminées extrêmement précisément, il reste beaucoup d'incertitudes ce qui explique la probablité d'acceptance assez faible et les valeurs toujours élevées au contraire de l'énergie. """
 #Histogramme 2D suite
 
 plt.figure(figsize=(15, 4))
@@ -194,7 +195,7 @@ plt.colorbar(label='Nombre d\'échantillons')
 
 plt.tight_layout()
 plt.show()
-
+"""Cette représentation nous permet tout de même de voir des corrélations non visibles précédemment : les points les plus foncées montrent les valeurs les plus probables pour deux paramètres pris ensemble, ce qui permet d'en avoir une meilleure approximation. On peut prendre l'endroit où ils sont les plus foncés donc."""
 #Médianes et quartile
 
 import numpy as np
@@ -219,3 +220,6 @@ plt.title('Profil de température : médiane et quantiles')
 plt.legend()
 plt.grid()
 plt.show()
+"""
+On voit que le profil de référence représente plutôt bien les données bruitées, et la médiane n'est pas aberrante. Toutefois, l'écartement des données est extrêmement fort.Le modèle pourrait encore être amélioré. 
+"""
